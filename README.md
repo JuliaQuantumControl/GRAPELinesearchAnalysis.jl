@@ -1,8 +1,10 @@
 # GRAPELinesearchAnalysis.jl
 
-A package to analyze and debug [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl)/[LBFGS](https://julianlsolvers.github.io/Optim.jl/stable/#algo/lbfgs/) linesearch behavior inside [GRAPE.jl](https://github.com/JuliaQuantumControl/GRAPE.jl).
+A package to analyze and debug LBFGS linesearch behavior inside [GRAPE.jl](https://github.com/JuliaQuantumControl/GRAPE.jl).
 
-The package allows to explore how the value of the functional varies both in the direction of the gradient and in the search direction chosen by LBFGS for different step widths, around the step width α chosen by Optim.jl.
+It works with either [Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl)/[LBFGS](https://julianlsolvers.github.io/Optim.jl/stable/#algo/lbfgs/) or [LBFGSB.jl](https://github.com/Gnimuc/LBFGSB.jl) as a backedn.
+
+The package allows to explore how the value of the functional varies both in the direction of the gradient and in the search direction chosen by LBFGS for different step widths, around the step width α chosen by the optimizer
 
 ## Installation
 

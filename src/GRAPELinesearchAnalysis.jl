@@ -5,6 +5,7 @@ using QuantumControlBase.ConditionalThreads: @threadsif
 using QuantumPropagators
 using GRAPE
 using Optim
+using LBFGSB
 using LinearAlgebra
 using PyPlot: matplotlib
 
@@ -21,7 +22,7 @@ function explore_linesearch(search_direction, α_vals, pulsevals0, wrk)
     Ψ = wrk.fw_states
     τ = wrk.result.tau_vals
     for (i, α) in enumerate(α_vals)
-        pulsevals= pulsevals0 + α * search_direction
+        pulsevals = pulsevals0 + α * search_direction
         @threadsif wrk.use_threads for k = 1:N
             copyto!(Ψ[k], wrk.objectives[k].initial_state)
             for n = 1:N_T  # `n` is the index for the time interval
@@ -36,22 +37,67 @@ function explore_linesearch(search_direction, α_vals, pulsevals0, wrk)
 end
 
 
+function _get_linesearch_data(
+        wrk,
+        optimization_state::Optim.OptimizationState,
+        optimizer_state::Optim.AbstractOptimizerState,
+)
+    # TODO: use wrk only (and compare with current implementation)
+    α = optimizer_state.alpha # the stepwidth chosen by the linesearch
+    lbfgs_direction = optimizer_state.s # the quasi-Newton update direction
+    gradient_direction = -1 * optimizer_state.g_previous
+    pulsevals_guess = optimizer_state.x_previous
+    pulsevals_opt = optimizer_state.x
+
+    return α, lbfgs_direction, gradient_direction, pulsevals_guess, pulsevals_opt
+
+end
+
+
+function _get_linesearch_data(
+        wrk,
+        iter_res::GRAPE.LBFGSB_Result,
+        optimizer::LBFGSB.L_BFGS_B,
+)
+    # TODO: use wrk only (and compare with current implementation)
+    lbfgs_direction = wrk.searchdirection
+    gradient_direction =  -1 * wrk.gradient
+    if norm(lbfgs_direction) ≈ 0.0
+        # LBFGSB hasn't yet built up Hessian (first iteration)
+        # TODO: this should be fixed in GRAPE
+        lbfgs_direction = gradient_direction
+    end
+    pulsevals_opt = iter_res.x
+    pulsevals_guess = iter_res.x_previous
+    Δϵ = pulsevals_opt - pulsevals_guess
+    norm_Δϵ = norm(Δϵ)
+    norm_ls = norm(lbfgs_direction)
+    proj_ls = Δϵ ⋅ lbfgs_direction
+    cosθ = proj_ls / (norm_Δϵ * norm_ls)
+    @assert cosθ ≈ 1.0  # search direction and Δϵ are parallel
+    α = proj_ls / norm_ls^2
+    @assert α ≈ optimizer.dsave[14]
+    @assert norm(Δϵ - α * lbfgs_direction) < 1e-12
+
+    return α, lbfgs_direction, gradient_direction, pulsevals_guess, pulsevals_opt
+
+end
+
+
 function plot_linesearch(outdir)
 
     function _plot_linesearch(
             wrk,
-            optimization_state::Optim.OptimizationState,
-            optimizer_state::Optim.AbstractOptimizerState,
+            optimization_state,
+            optimizer_state,
             iteration, args...)
 
         (iteration == 0) && (return nothing)
 
-        α = optimizer_state.alpha # the stepwidth chosen by the linesearch
-        lbfgs_direction = optimizer_state.s # the quasi-Newton update direction
-        gradient_direction = -1 * optimizer_state.g_previous
+        # TODO: linesearch data sources should be entirely in wrk, so we don't
+        # need different methods.
+        α, lbfgs_direction, gradient_direction, pulsevals_guess, pulsevals_opt = _get_linesearch_data(wrk, optimization_state, optimizer_state)
         α_vals = collect(range(0, 2α, length=100))
-        pulsevals_guess = optimizer_state.x_previous
-        pulsevals_opt = optimizer_state.x
         J_α_gradient = explore_linesearch(gradient_direction, α_vals, pulsevals_guess, wrk)
         J_α_lbfgs = explore_linesearch(lbfgs_direction, α_vals, pulsevals_guess, wrk)
         J_T = wrk.result.J_T
