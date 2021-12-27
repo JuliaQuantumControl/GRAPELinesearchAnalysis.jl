@@ -27,7 +27,7 @@ function explore_linesearch(search_direction, α_vals, pulsevals0, wrk)
             copyto!(Ψ[k], wrk.objectives[k].initial_state)
             for n = 1:N_T  # `n` is the index for the time interval
                 local (G, dt) = GRAPE._fw_gen(pulsevals, k, n, wrk)
-                propstep!(Ψ[k], G, dt, wrk.prop_wrk[k])
+                propstep!(Ψ[k], G, dt, wrk.fw_prop_wrk[k])
             end
             τ[k] = dot(wrk.objectives[k].target_state, Ψ[k])
         end
