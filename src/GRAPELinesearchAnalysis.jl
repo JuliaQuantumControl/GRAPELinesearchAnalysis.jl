@@ -103,6 +103,8 @@ function plot_linesearch(
     )
     merge!(default, kwargs)
 
+    mkpath(outdir)
+
     function _plot_linesearch(wrk, optimization_state, optimizer_state, iteration, args...)
 
         current_backend = backend()
