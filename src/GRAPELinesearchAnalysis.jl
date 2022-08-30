@@ -20,18 +20,17 @@ function explore_linesearch(search_direction, α_vals, pulsevals0, wrk)
     J_T_func = wrk.kwargs[:J_T]
     N_T = length(wrk.result.tlist) - 1
     N = length(wrk.objectives)
-    Ψ = wrk.fw_states
     τ = wrk.result.tau_vals
     for (i, α) in enumerate(α_vals)
         pulsevals = pulsevals0 + α * search_direction
         @threadsif wrk.use_threads for k = 1:N
-            copyto!(Ψ[k], wrk.objectives[k].initial_state)
+            reinitprop!(wrk.fw_propagators[k], wrk.objectives[k].initial_state)
             for n = 1:N_T  # `n` is the index for the time interval
-                local (G, dt) = GRAPE._fw_gen(pulsevals, k, n, wrk)
-                propstep!(Ψ[k], G, dt, wrk.fw_prop_wrk[k])
+                propstep!(wrk.fw_propagators[k])
             end
-            τ[k] = dot(wrk.objectives[k].target_state, Ψ[k])
+            τ[k] = dot(wrk.objectives[k].target_state, wrk.fw_propagators[k].state)
         end
+        Ψ = [propagator.state for propagator in wrk.fw_propagators]
         J_T_vals[i] = J_T_func(Ψ, wrk.objectives; τ=τ)
     end
     return J_T_vals
