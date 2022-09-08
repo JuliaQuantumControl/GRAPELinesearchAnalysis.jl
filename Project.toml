@@ -1,7 +1,7 @@
 name = "GRAPELinesearchAnalysis"
 uuid = "290eba36-e2d8-4488-81b6-f66cc44f2186"
 authors = ["Michael Goerz <goerz@stanford.edu>"]
-version = "0.4.1"
+version = "0.4.1+dev"
 
 [deps]
 GRAPE = "6b52fcaf-80fe-489a-93e9-9f92080510be"
