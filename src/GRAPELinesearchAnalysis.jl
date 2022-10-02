@@ -104,7 +104,7 @@ function plot_linesearch(
 
     mkpath(outdir)
 
-    function _plot_linesearch(wrk, optimization_state, optimizer_state, iteration, args...)
+    function _plot_linesearch(wrk, iteration, optimization_state, optimizer_state, args...)
 
         current_backend = backend()
         if !use_current_backend && !(current_backend isa Plots.GRBackend)
