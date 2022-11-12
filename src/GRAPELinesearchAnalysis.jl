@@ -24,9 +24,9 @@ function explore_linesearch(search_direction, α_vals, pulsevals0, wrk)
     for (i, α) in enumerate(α_vals)
         pulsevals = pulsevals0 + α * search_direction
         @threadsif wrk.use_threads for k = 1:N
-            reinitprop!(wrk.fw_propagators[k], wrk.objectives[k].initial_state)
+            reinit_prop!(wrk.fw_propagators[k], wrk.objectives[k].initial_state)
             for n = 1:N_T  # `n` is the index for the time interval
-                propstep!(wrk.fw_propagators[k])
+                prop_step!(wrk.fw_propagators[k])
             end
             τ[k] = dot(wrk.objectives[k].target_state, wrk.fw_propagators[k].state)
         end
