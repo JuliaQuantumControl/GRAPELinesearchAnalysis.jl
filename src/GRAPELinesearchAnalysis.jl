@@ -21,8 +21,9 @@ function explore_linesearch(search_direction, α_vals, pulsevals0, wrk)
     N_T = length(wrk.result.tlist) - 1
     N = length(wrk.objectives)
     τ = wrk.result.tau_vals
+    pulsevals_orig = copy(wrk.pulsevals)
     for (i, α) in enumerate(α_vals)
-        pulsevals = pulsevals0 + α * search_direction
+        wrk.pulsevals .= pulsevals0 .+ α .* search_direction
         @threadsif wrk.use_threads for k = 1:N
             reinit_prop!(wrk.fw_propagators[k], wrk.objectives[k].initial_state)
             for n = 1:N_T  # `n` is the index for the time interval
@@ -33,53 +34,39 @@ function explore_linesearch(search_direction, α_vals, pulsevals0, wrk)
         Ψ = [propagator.state for propagator in wrk.fw_propagators]
         J_T_vals[i] = J_T_func(Ψ, wrk.objectives; τ=τ)
     end
+    wrk.pulsevals .= pulsevals_orig
     return J_T_vals
 end
 
 
 function _get_linesearch_data(
     wrk,
-    optimization_state::Optim.OptimizationState,
-    optimizer_state::Optim.AbstractOptimizerState,
+    iteration,
+    args...
 )
-    # TODO: use wrk only (and compare with current implementation)
-    α = optimizer_state.alpha # the stepwidth chosen by the linesearch
-    lbfgs_direction = optimizer_state.s # the quasi-Newton update direction
-    gradient_direction = -1 * optimizer_state.g_previous
-    pulsevals_guess = optimizer_state.x_previous
-    pulsevals_opt = optimizer_state.x
 
-    return α, lbfgs_direction, gradient_direction, pulsevals_guess, pulsevals_opt
-
-end
-
-
-function _get_linesearch_data(
-    wrk,
-    iter_res::GRAPE.LBFGSB_Result,
-    optimizer::LBFGSB.L_BFGS_B,
-)
-    # TODO: use wrk only (and compare with current implementation)
-    lbfgs_direction = wrk.searchdirection
+    searchdirection = wrk.searchdirection
     gradient_direction = -1 * wrk.gradient
-    if norm(lbfgs_direction) ≈ 0.0
+    if norm(searchdirection) ≈ 0.0
         # LBFGSB hasn't yet built up Hessian (first iteration)
         # TODO: this should be fixed in GRAPE
-        lbfgs_direction = gradient_direction
+        searchdirection = gradient_direction
     end
-    pulsevals_opt = iter_res.x
-    pulsevals_guess = iter_res.x_previous
+    pulsevals_opt = wrk.pulsevals
+    pulsevals_guess = wrk.pulsevals_guess
     Δϵ = pulsevals_opt - pulsevals_guess
     norm_Δϵ = norm(Δϵ)
-    norm_ls = norm(lbfgs_direction)
-    proj_ls = Δϵ ⋅ lbfgs_direction
+    norm_ls = norm(searchdirection)
+    proj_ls = Δϵ ⋅ searchdirection
+    # check that search direction and Δϵ are parallel
     cosθ = proj_ls / (norm_Δϵ * norm_ls)
-    @assert cosθ ≈ 1.0  # search direction and Δϵ are parallel
+    i = iteration
+    @assert abs(cosθ - 1.0) < 1e-12  "iter $i: cos(θ) = $cosθ ≠ 1"
     α = proj_ls / norm_ls^2
-    @assert α ≈ optimizer.dsave[14]
-    @assert norm(Δϵ - α * lbfgs_direction) < 1e-12
+    @assert abs(α - wrk.alpha) < 1e-12 "iter $i: α = $α ≠ wrk.alpha = $(wrk.alpha)"
+    @assert norm(Δϵ - α * searchdirection) < 1e-12
 
-    return α, lbfgs_direction, gradient_direction, pulsevals_guess, pulsevals_opt
+    return α, searchdirection, gradient_direction, pulsevals_guess, pulsevals_opt
 
 end
 
@@ -104,7 +91,7 @@ function plot_linesearch(
 
     mkpath(outdir)
 
-    function _plot_linesearch(wrk, iteration, optimization_state, optimizer_state, args...)
+    function _plot_linesearch(wrk, iteration, args...)
 
         current_backend = backend()
         if !use_current_backend && !(current_backend isa Plots.GRBackend)
@@ -115,11 +102,11 @@ function plot_linesearch(
 
         # TODO: linesearch data sources should be entirely in wrk, so we don't
         # need different methods.
-        α, lbfgs_direction, gradient_direction, pulsevals_guess, pulsevals_opt =
-            _get_linesearch_data(wrk, optimization_state, optimizer_state)
+        α, ls_direction, gradient_direction, pulsevals_guess, pulsevals_opt =
+            _get_linesearch_data(wrk, iteration, args...)
         α_vals = collect(range(0, 2α, length=samples))
         J_α_gradient = explore_linesearch(gradient_direction, α_vals, pulsevals_guess, wrk)
-        J_α_lbfgs = explore_linesearch(lbfgs_direction, α_vals, pulsevals_guess, wrk)
+        J_α_ls = explore_linesearch(ls_direction, α_vals, pulsevals_guess, wrk)
         J_T = wrk.result.J_T
         J_T_guess = wrk.result.J_T_prev
 
@@ -148,10 +135,10 @@ function plot_linesearch(
         ax3 = plot(gradient_direction; linestyle=:dash, label="gradient", defaults...)
         plot!(
             ax3,
-            lbfgs_direction;
-            label="LBFGS direction",
+            ls_direction;
+            label="search direction",
             xlabel="time step (control parameter index)",
-            ylabel="LBFGS direction",
+            ylabel="search direction",
             defaults...
         )
 
@@ -173,14 +160,14 @@ function plot_linesearch(
             J_α_gradient;
             linestyle=:dash,
             label="gradient",
-            title="LBFGS Linesearch α = $α",
+            title="Linesearch α = $α",
             defaults...
         )
         plot!(
             ax5,
             α_vals,
-            J_α_lbfgs;
-            label="LBFGS",
+            J_α_ls;
+            label="search direction",
             xlabel="step width α",
             ylabel="Functional",
             defaults...
