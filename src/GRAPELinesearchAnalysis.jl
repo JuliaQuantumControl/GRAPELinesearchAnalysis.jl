@@ -1,7 +1,7 @@
 module GRAPELinesearchAnalysis
 
 using Printf
-using QuantumControlBase.ConditionalThreads: @threadsif
+using QuantumControlBase: @threadsif
 using QuantumPropagators
 using GRAPE
 using Optim
