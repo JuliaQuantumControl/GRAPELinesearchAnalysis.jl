@@ -18,6 +18,7 @@ function clean(; distclean=false, _exit=true)
     for folder in ["", "src"]
         append!(CLEAN, _glob(joinpath(ROOT, folder), ".cov"))
     end
+    append!(CLEAN, _glob(ROOT, ".info"))
     ###########################################################################
 
     ###########################################################################

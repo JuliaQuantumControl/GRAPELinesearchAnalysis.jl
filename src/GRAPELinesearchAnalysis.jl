@@ -13,7 +13,7 @@ using Plots.PlotMeasures: px
 
 # Given a search direction (e.g., the negative gradient) and a vector of step
 # widths α, return a vector of J_T for going downhill in the direction of the
-# gradient by a distance α, from `pulsevals0`. Plotting the resul is useful for
+# gradient by a distance α, from `pulsevals0`. Plotting the result is useful for
 # getting a feeling for the gradient and the linesearch.
 function explore_linesearch(search_direction, α_vals, pulsevals0, wrk)
     J_T_vals = zeros(length(α_vals))
@@ -128,7 +128,7 @@ function plot_linesearch(
             gradient_direction;
             label="gradient",
             xlabel="time step (control parameter index)",
-            ylabel="gradient directon",
+            ylabel="gradient direction",
             defaults...
         )
 
