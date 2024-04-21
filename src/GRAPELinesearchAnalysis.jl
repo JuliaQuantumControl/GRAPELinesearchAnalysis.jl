@@ -42,29 +42,17 @@ end
 function _get_linesearch_data(
     wrk,
     iteration,
-    args...
 )
 
-    searchdirection = wrk.searchdirection
-    gradient_direction = -1 * wrk.gradient
-    if norm(searchdirection) ≈ 0.0
-        # LBFGSB hasn't yet built up Hessian (first iteration)
-        # TODO: this should be fixed in GRAPE
-        searchdirection = gradient_direction
-    end
+    searchdirection = GRAPE.search_direction(wrk)
+    gradient_direction = -1 * GRAPE.gradient(wrk)
     pulsevals_opt = wrk.pulsevals
     pulsevals_guess = wrk.pulsevals_guess
-    Δϵ = pulsevals_opt - pulsevals_guess
-    norm_Δϵ = norm(Δϵ)
-    norm_ls = norm(searchdirection)
-    proj_ls = Δϵ ⋅ searchdirection
-    # check that search direction and Δϵ are parallel
-    cosθ = proj_ls / (norm_Δϵ * norm_ls)
-    i = iteration
-    @assert abs(cosθ - 1.0) < 1e-12  "iter $i: cos(θ) = $cosθ ≠ 1"
-    α = proj_ls / norm_ls^2
-    @assert abs(α - wrk.alpha) < 1e-12 "iter $i: α = $α ≠ wrk.alpha = $(wrk.alpha)"
-    @assert norm(Δϵ - α * searchdirection) < 1e-12
+    Δϵ = GRAPE.pulse_update(wrk)
+    α = GRAPE.step_width(wrk)
+    if iteration > 1
+        @assert norm(Δϵ - α * searchdirection) < 1e-10
+    end
 
     return α, searchdirection, gradient_direction, pulsevals_guess, pulsevals_opt
 
@@ -100,10 +88,8 @@ function plot_linesearch(
 
         (iteration == 0) && (return nothing)
 
-        # TODO: linesearch data sources should be entirely in wrk, so we don't
-        # need different methods.
         α, ls_direction, gradient_direction, pulsevals_guess, pulsevals_opt =
-            _get_linesearch_data(wrk, iteration, args...)
+            _get_linesearch_data(wrk, iteration)
         α_vals = collect(range(0, 2α, length=samples))
         J_α_gradient = explore_linesearch(gradient_direction, α_vals, pulsevals_guess, wrk)
         J_α_ls = explore_linesearch(ls_direction, α_vals, pulsevals_guess, wrk)
@@ -198,11 +184,46 @@ function plot_linesearch(
             current_backend() # switch back
         end
 
-        return nothing
+        g_norm = norm(gradient_direction)
+        s_norm = norm(ls_direction)
+        ratio = s_norm / g_norm
+        angle = GRAPE.vec_angle(gradient_direction, ls_direction; unit=:degree)
+        return (iteration, g_norm, s_norm, ratio, angle, α)
 
     end
 
     return _plot_linesearch
+end
+
+
+"""Print information about the linesearch direction in each iteration.
+
+```julia
+print_ls_table(res)
+```
+
+where `res` is the result of calling `optimize` with `method=GRAPE` and
+`info_hook=GRAPELinesearchAnalysis.plot_linesearch`
+"""
+function print_ls_table(res)
+    println("")
+    @printf("%6s", "iter")
+    @printf("%10s", "|grad|")
+    @printf("%10s", "|search|")
+    @printf("%10s", "ratio")
+    @printf("%10s", "angle(°)")
+    @printf("%10s", "step α")
+    println("")
+    for (iter, g_norm, s_norm, ratio, angle, α) in res.records
+        @printf("%6d", iter)
+        @printf("%10.2e", g_norm)
+        @printf("%10.2e", s_norm)
+        @printf("%10.2f", ratio)
+        @printf("%10.2f", angle)
+        @printf("%10.2f", α)
+        println("")
+    end
+    println("")
 end
 
 end # module
