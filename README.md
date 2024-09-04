@@ -12,14 +12,14 @@ The `GRAPELinesearchAnalysis` package is not registered. Thus, you can only inst
 
 ## Usage
 
-The package is designed to be used as an `info_hook` for a [GRAPE.jl](https://github.com/JuliaQuantumControl/GRAPE.jl) optimization. For example,
+The package is designed to be used as a `callback` for a [GRAPE.jl](https://github.com/JuliaQuantumControl/GRAPE.jl) optimization. For example,
 
 ~~~
 using GRAPELinesearchAnalysis
 
 opt_result = optimize_grape(
         problem,
-        info_hook=GRAPELinesearchAnalysis.plot_linesearch(
+        callback=GRAPELinesearchAnalysis.plot_linesearch(
             @__DIR__, samples=100, verbose=false, use_current_backend=false
         ),
 )
