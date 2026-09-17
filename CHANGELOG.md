@@ -16,6 +16,7 @@ For earlier releases, see the [tags](https://github.com/JuliaQuantumControl/GRAP
 * Changed: The environment variable `GRAPE_LINESEARCH_ANALYSIS_USE_CURRENT_BACKED` is replaced by the correctly spelled `GRAPE_LINESEARCH_ANALYSIS_USE_CURRENT_BACKEND`
 * Changed: The ratio and the step width α in `print_ls_table` use exponential notation
 * Added: Keyword argument `rtol` for `plot_linesearch`
+* Added: Tests and continuous integration
 * Fixed: The callback no longer changes the `tau_vals` of the optimization result, and restores the GRAPE workspace for the optimized pulses, as required with GRAPE 1.2 for an Optim.jl optimizer
 * Fixed: For an optimizer that does not update the pulses along the search direction (e.g., `Optim.ConjugateGradient`), the callback no longer aborts the optimization with an assertion error. It warns once and plots the line search along the pulse update instead
 * Fixed: Keyword arguments of `plot_linesearch` for the plotting functions were ignored
